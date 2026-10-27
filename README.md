@@ -80,9 +80,13 @@ npm run build
 
 如果你觉得「隐私护盾」保护了你的密钥与数据安全，欢迎请作者喝杯咖啡！你的支持是持续维护规则库与功能演进的最大动力：
 
+<div align="center">
+  <img src="assets/alipay-qr.jpg" width="220" alt="支付宝赞助二维码" />
+  <p><sub>扫码支持开源作者 (支付宝)</sub></p>
+</div>
+
 - **GitHub Sponsors**: [Sponsor @Lukeknow0](https://github.com/sponsors/Lukeknow0)
 - **Buy Me a Coffee**: [buymeacoffee.com/lukeknow0](https://www.buymeacoffee.com/lukeknow0)
-- **微信 / 支付宝**: 可在仓库 Issue 或 Discussions 中留言赞助支持 ☕
 
 ---
 
