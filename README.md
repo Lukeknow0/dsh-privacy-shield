@@ -76,6 +76,16 @@ npm run build
 
 ---
 
+## ☕ 赞助与支持 (Donate & Sponsor)
+
+如果你觉得「隐私护盾」保护了你的密钥与数据安全，欢迎请作者喝杯咖啡！你的支持是持续维护规则库与功能演进的最大动力：
+
+- **GitHub Sponsors**: [Sponsor @Lukeknow0](https://github.com/sponsors/Lukeknow0)
+- **Buy Me a Coffee**: [buymeacoffee.com/lukeknow0](https://www.buymeacoffee.com/lukeknow0)
+- **微信 / 支付宝**: 可在仓库 Issue 或 Discussions 中留言赞助支持 ☕
+
+---
+
 ## 📄 License
 
 MIT License © 2026
