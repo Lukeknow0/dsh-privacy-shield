@@ -1,0 +1,9 @@
+# dsh-privacy-shield bundle patch: mounts the Privacy Shield (隐私护盾) plugins into a dsh profile.
+# Install with: dsh plugin --profile <name> add ./dsh-privacy-shield
+
+- insert:
+    - id: dsh-privacy-shield
+      name: 'dsh-privacy-shield'
+
+    - id: dsh-privacy-shield-web
+      name: 'dsh-privacy-shield/web'
