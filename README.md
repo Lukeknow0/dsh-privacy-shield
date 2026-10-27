@@ -3,6 +3,8 @@
 > **仅留在本机的内容** —— 发往云端前自动替身，收到回复后无缝归位。  
 > Local HMAC-SHA256 Secret & PII Masking, Streaming Unmasking, and Visual Security Dashboard for DeepSeek Harness (DSH).
 
+![Privacy Shield Dashboard Preview](assets/dashboard-preview.png)
+
 ---
 
 ## ✨ 核心特性
