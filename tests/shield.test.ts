@@ -61,4 +61,35 @@ describe('Privacy Shield Engine', () => {
       rmSync(tmp, { recursive: true, force: true })
     }
   })
+
+  it('masks multi-country phone numbers (CN, US, UK, international) and ID cards', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'shield-test-'))
+    try {
+      const vault = new PrivacyVault(tmp)
+      const ledger = new PrivacyLedger(tmp)
+      const settings = ledger.updateSettings({ redactPersonal: true })
+
+      const text = [
+        'Call CN mobile: +86 13812345678 or 13987654321',
+        'Call US phone: +1 (415) 555-2671 or (212) 555-0199',
+        'Call UK phone: +44 7911 123456',
+        'ID card: A123456789', // Taiwan ID (valid checksum)
+        'HK ID: K123456(1)', // HK ID
+      ].join('\n')
+
+      const hits = new Map()
+      const masked = vault.maskText(text, settings, hits, {}, true)
+
+      assert.ok(masked.includes('{{PHONE_'), 'should mask phone numbers')
+      assert.ok(masked.includes('{{ID_CARD_'), 'should mask ID cards')
+      assert.ok(!masked.includes('13812345678'), 'raw CN phone should be masked')
+      assert.ok(!masked.includes('415) 555-2671'), 'raw US phone should be masked')
+      assert.ok(!masked.includes('+44 7911 123456'), 'raw UK phone should be masked')
+
+      const restored = vault.restoreText(masked)
+      assert.equal(restored, text, 'restored text should match original multi-country text')
+    } finally {
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
 })

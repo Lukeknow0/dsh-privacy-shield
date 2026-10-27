@@ -28,6 +28,111 @@ export function isValidChineseID(s: string): boolean {
   return last === codes[sum % 11]
 }
 
+/**
+ * Multi-country Identity Card validation.
+ * Supports:
+ * - 中国大陆 18 位身份证 (GB 11643 加权校验)
+ * - 中国香港身份证 HKID (1-2字母 + 6位数字 + 校验码)
+ * - 中国台湾身分证 (1字母 + 9数字，首字母权值检验)
+ * - 英国国民保险号 UK NINO (2字母 + 6数字 + 1字母)
+ */
+export function isValidMultiCountryID(s: string): boolean {
+  const clean = s.trim().toUpperCase()
+  // 1. 中国大陆 18 位身份证
+  if (/^[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(clean)) {
+    return isValidChineseID(clean)
+  }
+  // 2. 中国香港 HKID: [A-Z]{1,2}[0-9]{6}\([0-9A]\) 或无括号
+  const hkMatch = /^([A-Z]{1,2})(\d{6})\(?([0-9A])\)?$/.exec(clean)
+  if (hkMatch) {
+    const letters = hkMatch[1]
+    const digits = hkMatch[2]
+    const check = hkMatch[3]
+    let sum = 0
+    if (letters.length === 1) {
+      sum += 36 * 9 + (letters.charCodeAt(0) - 55) * 8
+    } else {
+      sum += (letters.charCodeAt(0) - 55) * 9 + (letters.charCodeAt(1) - 55) * 8
+    }
+    for (let i = 0; i < 6; i++) {
+      sum += (digits.charCodeAt(i) - 48) * (7 - i)
+    }
+    const rem = sum % 11
+    const expected = rem === 0 ? '0' : rem === 1 ? 'A' : String(11 - rem)
+    return check === expected
+  }
+  // 3. 中国台湾身分证: 1位英文字母 + 9位数字 (第1位数字通常是1或2)
+  if (/^[A-Z][12]\d{8}$/.test(clean)) {
+    const letterCode = [
+      10, 11, 12, 13, 14, 15, 16, 17, 34, 18, 19, 20, 21, 22, 35, 23, 24, 25, 26, 27, 28, 29, 32, 30, 31, 33,
+    ][clean.charCodeAt(0) - 65]
+    if (letterCode !== undefined) {
+      const x1 = Math.floor(letterCode / 10)
+      const x2 = letterCode % 10
+      let sum = x1 + x2 * 9
+      for (let i = 1; i <= 8; i++) {
+        sum += (clean.charCodeAt(i) - 48) * (9 - i)
+      }
+      const rem = sum % 10
+      const check = rem === 0 ? 0 : 10 - rem
+      return check === (clean.charCodeAt(9) - 48)
+    }
+  }
+  // 4. 英国 NINO: 2 字母 + 6 数字 + 1 字母 (如 QQ123456C)
+  if (/^[A-CEGHJ-PR-TW-Z]{2}\s*\d{6}\s*[A-D]$/i.test(clean)) {
+    return true
+  }
+  // 5. 香港身份证 HKID (支持标准带/不带括号)
+  if (/^[A-Z]{1,2}\d{6}\(?[0-9A]\)?$/.test(clean)) {
+    return true
+  }
+  return false
+}
+
+/**
+ * Multi-country Phone Number validation.
+ * Checks valid structure and bounds for:
+ * - 中国大陆: +86 / 1[3-9]d{9}
+ * - 北美 (US/CA): +1 NANP (NXX-NXX-XXXX, N=2-9)
+ * - 英国 (UK): +44 7xxx xxx xxx (移动) 或常见固话
+ * - 日本 (JP): +81 70/80/90 xxxx xxxx (移动)
+ * - 德国 (DE): +49 15x/16x/17x xxxxxxx
+ * - 国际 E.164 通用格式: +\d{1,3}[- ]?\d{4,14}
+ */
+export function isLikelyPhoneNumber(s: string, fullText: string, index: number): boolean {
+  const clean = s.replace(/[-. ()]/g, '')
+  // Avoid purely timestamp/hash/date integers or IP port fragments
+  if (clean.length < 8 || clean.length > 15) return false
+  if (/^(\d)\1+$/.test(clean) || clean === '123456789' || clean === '1234567890') return false
+
+  // Avoid matching within decimal numbers, versions, timestamps, CSS units or code identifiers
+  const prevChar = index > 0 ? fullText[index - 1] : ''
+  const nextChar = index + s.length < fullText.length ? fullText[index + s.length] : ''
+  if (/[0-9A-Za-z_.]/.test(prevChar) || /[0-9A-Za-z_.]/.test(nextChar)) return false
+
+  // 中国大陆
+  if (clean.startsWith('86') && clean.length === 13 && /^861[3-9]\d{9}$/.test(clean)) return true
+  if (clean.length === 11 && /^1[3-9]\d{9}$/.test(clean)) return true
+
+  // 北美 (US/CA) NANP: 10 digits or 11 digits starting with 1. Area code and exchange code cannot start with 0 or 1.
+  if (clean.length === 11 && clean.startsWith('1')) {
+    return /^1[2-9]\d{2}[2-9]\d{6}$/.test(clean)
+  }
+  if (clean.length === 10 && /^[2-9]\d{2}[2-9]\d{6}$/.test(clean)) {
+    // Require standard phone punctuation (parentheses or hyphen or space) to prevent false positives on plain numbers
+    return /[-( ]/.test(s)
+  }
+
+  // 国际带明确国际区号前缀 (+xx ...)
+  if (s.trim().startsWith('+')) {
+    // 英国 (+44), 日本 (+81), 德国 (+49), 新加坡 (+65), 澳大利亚 (+61), 法国 (+33), 韩国 (+82) 等
+    if (/^\+(?:44|81|49|65|61|33|82|852|886|91|31|41|46|39)\d{7,12}$/.test(clean)) return true
+    return /^\+\d{1,3}\d{7,12}$/.test(clean)
+  }
+
+  return false
+}
+
 /** Luhn mod-10 bank card validation. */
 export function isValidLuhn(s: string): boolean {
   const digits = s.replace(/[ -]/g, '')
@@ -307,18 +412,19 @@ export const BUILTIN_RULES: BuiltinRule[] = [
     re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/g,
     validate: isRealEmail,
   },
-  // 15. Chinese 18-digit ID Card
+  // 15. Multi-country ID Card (CN Mainland 18-digit, HK HKID, TW ID, UK NINO)
   {
     kind: 'ID_CARD',
     category: 'personal',
-    re: /\b[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b/g,
-    validate: isValidChineseID,
+    re: /\b(?:[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]|[A-Z]{1,2}\d{6}\(?[0-9A]\)?|[A-Z][12]\d{8}|[A-CEGHJ-PR-TW-Z]{2}\d{6}[A-D])\b/g,
+    validate: (m) => isValidMultiCountryID(m),
   },
-  // 16. Chinese Mainland Phone Number
+  // 16. Multi-country Phone Number (CN Mainland, US/CA NANP, UK, JP, DE, E.164)
   {
     kind: 'PHONE',
     category: 'personal',
-    re: /(?:\+?86[- ]?)?\b1[3-9]\d{9}\b/g,
+    re: /(?:\+\d{1,3}[- ]?)?(?:\(?\d{2,4}\)?[- ]?)?\d{3,5}[- ]?\d{4,6}\b/g,
+    validate: isLikelyPhoneNumber,
   },
   // 17. Bank Card (13-19 digits with Luhn check)
   {
