@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { h } from './element.ts'
+import { ShieldIcon, h } from './element.ts'
 import { BY_LABELS_ZH, KIND_LABELS_ZH, type ShieldLocaleKey } from './locales.ts'
 import type {
   DaySummaryItem,
@@ -214,7 +214,7 @@ export function ShieldDashboard({ rpc, t }: DashboardProps): ReactNode {
               },
                 h('path', { d: 'M 0 20 C 35 20, 35 20, 50 20 C 65 20, 65 20, 100 20', strokeDasharray: '2,2' }),
               ),
-              h('div', { className: 'dsh-shield-flow-hub' }, '🛡️'),
+              h('div', { className: 'dsh-shield-flow-hub' }, h(ShieldIcon, { size: 15 })),
             ),
             h('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } },
               ...(summary?.providers?.slice(0, 3) ?? [{ name: 'Cloud Models', n: summary?.n ?? 0 }]).map((p) =>

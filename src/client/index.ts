@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import { h } from './element.ts'
+import { ShieldIcon, h } from './element.ts'
 import { en, zh, type ShieldLocaleKey } from './locales.ts'
 import { installShieldStyles } from './styles.ts'
 import { ShieldDashboard } from './dashboard.ts'
@@ -93,14 +93,38 @@ function ShieldHeaderBadge({ rpc, t }: { rpc: ShieldRpcClient; t: (k: ShieldLoca
       lineHeight: '16px',
     },
     onClick: () => {
-      // Direct navigation to settings.section -> privacy-shield
-      const navItem = document.querySelector('[data-section-id="privacy-shield"]') as HTMLElement | null
-      if (navItem) navItem.click()
+      // 优先打开左侧主导航的独立面板，若在设置页则跳转
+      const sideItem = document.querySelector('[data-dsh-panel-entry="privacy-shield"]') as HTMLElement | null
+      if (sideItem) {
+        sideItem.click()
+      } else {
+        const navItem = document.querySelector('[data-section-id="privacy-shield"]') as HTMLElement | null
+        if (navItem) navItem.click()
+      }
     },
   },
-    h('span', null, '🛡️'),
+    h(ShieldIcon, { size: 12, style: { color: 'var(--dsw-alias-brand-primary, #4176e6)', flex: 'none' } }),
     h('span', null, count > 999 ? `${(count / 1000).toFixed(1)}k` : String(count)),
   )
+}
+
+function ShieldPanelIcon({ size = 16 }: { size?: number }): ReactNode {
+  return h('span', {
+    'data-dsh-panel-entry': 'privacy-shield',
+    style: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+  }, h(ShieldIcon, { size }))
+}
+
+function ShieldMainPanel({ rpc, t, lang }: { rpc: ShieldRpcClient; t: (k: ShieldLocaleKey) => string; lang?: string }): ReactNode {
+  return h('div', {
+    'data-dsh-plugin': 'privacy-shield',
+    style: {
+      padding: '24px 32px',
+      overflowY: 'auto',
+      height: '100%',
+      boxSizing: 'border-box',
+    },
+  }, h(ShieldSettingsRoot, { rpc, t, lang }))
 }
 
 export const inject = ['slots', 'locale', 'connection']
@@ -116,7 +140,29 @@ export function apply(ctx: ClientContext): void {
   const t = (k: ShieldLocaleKey) => ctx.locale.bind(NS)(k)
   const lang = ctx.locale.getLocale?.().active
 
-  // 1. Register Header Actions Slot (🛡️ Realtime Badge)
+  // 1. 注册左侧全局一级导航栏（与「任务看板」、「自动化任务」并列）
+  ctx.effect(() => {
+    return ctx.slots.inject('sidebar.panellist', () =>
+      ctx.slots.register({
+        name: 'sidebar.panellist',
+        id: 'privacy-shield',
+        order: 15, // 紧跟在任务看板与自动化之间
+        label: () => t('title'),
+      }, ({ size }: { size?: number }) => h(ShieldPanelIcon, { size })),
+    )
+  }, 'dsh-privacy-shield: sidebar panellist')
+
+  // 2. 注册左侧导航点击后切换的主舞台视图（main slot）
+  ctx.effect(() => {
+    return ctx.slots.inject('main', () =>
+      ctx.slots.register({
+        name: 'main',
+        key: 'privacy-shield',
+      }, () => h(ShieldMainPanel, { rpc, t, lang })),
+    )
+  }, 'dsh-privacy-shield: main panel')
+
+  // 3. 注册会话顶部状态栏实时徽标（含精致矢量 ShieldIcon）
   ctx.effect(() => {
     return ctx.slots.inject('conversation.session.header.actions', () =>
       ctx.slots.register({
@@ -128,7 +174,7 @@ export function apply(ctx: ClientContext): void {
     )
   }, 'dsh-privacy-shield: header badge')
 
-  // 2. Register Settings Section Slot
+  // 4. 同时保留设置中心次级入口（便于在设置中调整策略）
   ctx.effect(() => {
     return ctx.slots.inject('settings.section', () =>
       ctx.slots.register({
